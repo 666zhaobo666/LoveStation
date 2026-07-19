@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const AdmZip = require('adm-zip');
+const sharp = require('sharp');
 require('dotenv').config();
 
 const app = express();
@@ -214,6 +215,52 @@ function deletePhysicalFiles(filesToDelete, db) {
   });
 }
 
+// Helper to automatically compress and resize uploaded images for storage/performance optimization
+async function compressImage(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  
+  // Skip SVG or GIF animations to avoid breaking vectors/animations
+  if (ext === '.gif' || ext === '.svg') {
+    return;
+  }
+  
+  const tempPath = filePath + '.tmp';
+  try {
+    let pipeline = sharp(filePath);
+    const metadata = await pipeline.metadata();
+    
+    // Resize down if either dimension exceeds 1600px
+    if (metadata.width > 1600 || metadata.height > 1600) {
+      pipeline = pipeline.resize({
+        width: 1600,
+        height: 1600,
+        fit: 'inside',
+        withoutEnlargement: true
+      });
+    }
+    
+    // Apply compression according to format
+    if (ext === '.jpg' || ext === '.jpeg') {
+      pipeline = pipeline.jpeg({ quality: 80, progressive: true });
+    } else if (ext === '.png') {
+      pipeline = pipeline.png({ compressionLevel: 8, palette: true });
+    } else if (ext === '.webp') {
+      pipeline = pipeline.webp({ quality: 80 });
+    }
+    
+    await pipeline.toFile(tempPath);
+    
+    // Replace the original uncompressed image file on disk
+    fs.renameSync(tempPath, filePath);
+    console.log(`[Sharp GC] Image compressed successfully: ${filePath}`);
+  } catch (error) {
+    console.error('[Sharp GC] Error compressing image:', error);
+    if (fs.existsSync(tempPath)) {
+      try { fs.unlinkSync(tempPath); } catch (e) {}
+    }
+  }
+}
+
 // 3. Add Anniversary (Admin)
 app.post('/api/anniversaries', requireAdmin, (req, res) => {
   const { title, date, endDate, type, tags, images, image, description } = req.body;
@@ -363,10 +410,14 @@ app.put('/api/settings', requireAdmin, (req, res) => {
 });
 
 // 7. Upload Image (Admin)
-app.post('/api/upload', requireAdmin, uploadImage.single('image'), (req, res) => {
+app.post('/api/upload', requireAdmin, uploadImage.single('image'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No image file uploaded.' });
   }
+  
+  // Compress and optimize image to reduce storage footprints with zero visual quality loss
+  await compressImage(req.file.path);
+  
   const imageUrl = `/uploads/${req.file.filename}`;
   res.json({ imageUrl });
 });

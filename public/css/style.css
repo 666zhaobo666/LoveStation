@@ -1215,7 +1215,7 @@
 .card-image-count-badge {
   position: absolute;
   top: 12px;
-  right: 12px;
+  left: 12px;
   background: rgba(14, 12, 33, 0.65);
   border: 1px solid rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(12px) saturate(160%);
@@ -1229,8 +1229,15 @@
   align-items: center;
   gap: 5px;
   pointer-events: none;
-  z-index: 5;
+  z-index: 1;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Elegant fade-out when card is hovered to make way for admin drawer */
+.anniversary-card:hover .card-image-count-badge {
+  opacity: 0;
+  transform: translateY(-5px);
 }
 
 /* 3. Read Full Story Button on Card Cover */
