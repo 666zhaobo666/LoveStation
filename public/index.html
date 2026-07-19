@@ -230,6 +230,29 @@
           <input type="date" id="set-since-input" required>
           <p class="form-help-text">该日期用于主页大屏的“恋爱计时器”计算天数</p>
         </div>
+        
+        <div class="form-group">
+          <label for="set-passcode-input">管理员解锁密码 (留空则不修改)</label>
+          <div style="position: relative;">
+            <input type="password" id="set-passcode-input" placeholder="输入新密码">
+            <i id="toggle-set-password" class="far fa-eye password-eye" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-secondary); z-index: 5;"></i>
+          </div>
+          <p class="form-help-text">修改后，下次解锁控制台需要输入此新密码（留空表示不修改）</p>
+        </div>
+
+        <div class="form-group">
+          <label>网站浏览器图标 (Favicon)</label>
+          <div class="favicon-upload-wrapper" style="display: flex; align-items: center; gap: 15px; margin-top: 8px;">
+            <div id="favicon-preview-box" class="favicon-preview-circle" style="width: 44px; height: 44px; border-radius: 50%; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 51, 102, 0.15); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; box-shadow: 0 0 10px rgba(255, 51, 102, 0.1);">
+              ❤️
+            </div>
+            <button type="button" id="favicon-upload-btn" class="btn btn-secondary btn-sm" style="font-size: 0.85rem; padding: 6px 12px; height: 36px;"><i class="fas fa-upload"></i> 上传新图标</button>
+            <input type="file" id="set-favicon-upload" accept="image/*" class="hidden">
+            <input type="hidden" id="set-favicon-url">
+          </div>
+          <p class="form-help-text">支持 PNG/JPG/ICO 等格式图片，保存后浏览器页签图标将即时更新</p>
+        </div>
+
         <div id="settings-error-msg" class="error-msg hidden"></div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary cancel-modal">取消</button>

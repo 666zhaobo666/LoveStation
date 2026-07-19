@@ -157,7 +157,9 @@ app.get('/api/status', (req, res) => {
 
 app.post('/api/login', (req, res) => {
   const { passcode } = req.body;
-  if (passcode === ADMIN_PASSCODE) {
+  const db = readDB();
+  const currentPasscode = (db.settings && db.settings.adminPasscode) || ADMIN_PASSCODE;
+  if (passcode === currentPasscode) {
     // Set cookie valid for 30 days
     res.cookie('admin', 'true', {
       signed: true,
@@ -179,7 +181,12 @@ app.post('/api/logout', (req, res) => {
 // 2. Fetch Anniversaries & Settings (Public)
 app.get('/api/anniversaries', (req, res) => {
   const db = readDB();
-  res.json(db);
+  // Deep-clone db object to avoid mutating internal memory cache if applicable
+  const sanitizedDB = JSON.parse(JSON.stringify(db));
+  if (sanitizedDB.settings && sanitizedDB.settings.adminPasscode) {
+    delete sanitizedDB.settings.adminPasscode;
+  }
+  res.json(sanitizedDB);
 });
 
 // Helper to delete physical files from uploads directory if they are no longer referenced in the database
@@ -322,20 +329,32 @@ app.delete('/api/anniversaries/:id', requireAdmin, (req, res) => {
 
 // 6. Update Settings (Admin)
 app.put('/api/settings', requireAdmin, (req, res) => {
-  const { togetherSince, title } = req.body;
+  const { togetherSince, title, adminPasscode, favicon } = req.body;
   
   if (!togetherSince || !title) {
     return res.status(400).json({ error: 'Together Since date and Station Title are required.' });
   }
 
   const db = readDB();
-  db.settings = {
-    togetherSince,
-    title
-  };
+  if (!db.settings) {
+    db.settings = {};
+  }
+
+  db.settings.togetherSince = togetherSince;
+  db.settings.title = title;
+
+  if (adminPasscode && adminPasscode.trim()) {
+    db.settings.adminPasscode = adminPasscode.trim();
+  }
+
+  if (favicon !== undefined) {
+    db.settings.favicon = favicon;
+  }
 
   if (writeDB(db)) {
-    res.json(db.settings);
+    const clientSettings = { ...db.settings };
+    delete clientSettings.adminPasscode; // hide passcode in client response
+    res.json(clientSettings);
   } else {
     res.status(500).json({ error: 'Failed to write settings to database.' });
   }

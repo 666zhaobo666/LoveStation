@@ -8,6 +8,7 @@ const state = {
   isAdmin: false,
   togetherSince: '2024-05-20',
   stationTitle: '我们的爱之小站',
+  favicon: '',
   anniversaries: [],
   currentTagFilter: 'all',
   uploadedImages: [] // tracks images uploaded for the active form modal
@@ -69,6 +70,12 @@ const DOM = {
   settingsForm: document.getElementById('settings-form'),
   setTitleInput: document.getElementById('set-title-input'),
   setSinceInput: document.getElementById('set-since-input'),
+  setPasscodeInput: document.getElementById('set-passcode-input'),
+  toggleSetPassword: document.getElementById('toggle-set-password'),
+  faviconUploadBtn: document.getElementById('favicon-upload-btn'),
+  setFaviconUpload: document.getElementById('set-favicon-upload'),
+  faviconPreviewBox: document.getElementById('favicon-preview-box'),
+  setFaviconUrl: document.getElementById('set-favicon-url'),
   settingsErrorMsg: document.getElementById('settings-error-msg'),
   
   // Action triggers
@@ -151,12 +158,19 @@ async function fetchAllData() {
     if (data.settings) {
       state.togetherSince = data.settings.togetherSince || '2024-05-20';
       state.stationTitle = data.settings.title || '我们的爱之小站';
+      state.favicon = data.settings.favicon || '';
     }
     
     // Render static site details
     DOM.stationTitle.textContent = state.stationTitle;
     document.title = `${state.stationTitle} - 情侣纪念日与回忆录`;
     DOM.togetherDateText.textContent = state.togetherSince;
+    
+    // Dynamically apply favicon to browser tab
+    const faviconLink = document.querySelector('link[rel="icon"]');
+    if (faviconLink) {
+      faviconLink.href = state.favicon || "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❤️</text></svg>";
+    }
     
     calculateTogetherDays();
     renderTagsFilter();
@@ -877,9 +891,63 @@ function initEventListeners() {
   });
 
   // 7. Site Configuration Settings Trigger and Submit
+  DOM.toggleSetPassword.addEventListener('click', () => {
+    const isPassword = DOM.setPasscodeInput.type === 'password';
+    DOM.setPasscodeInput.type = isPassword ? 'text' : 'password';
+    DOM.toggleSetPassword.className = isPassword ? 'far fa-eye-slash password-eye' : 'far fa-eye password-eye';
+  });
+
+  DOM.faviconUploadBtn.addEventListener('click', () => {
+    DOM.setFaviconUpload.click();
+  });
+
+  DOM.setFaviconUpload.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      DOM.faviconUploadBtn.disabled = true;
+      DOM.faviconUploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 上传中...';
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        DOM.setFaviconUrl.value = data.imageUrl;
+        DOM.faviconPreviewBox.innerHTML = `<img src="${data.imageUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+        showToast('网站图标上传成功！');
+      } else {
+        showToast(data.error || '上传图标失败', 'error');
+      }
+    } catch (error) {
+      showToast('上传图标发生网络错误', 'error');
+    } finally {
+      DOM.faviconUploadBtn.disabled = false;
+      DOM.faviconUploadBtn.innerHTML = '<i class="fas fa-upload"></i> 上传新图标';
+    }
+  });
+
   DOM.editSettingsBtn.addEventListener('click', () => {
-    DOM.setTitleInput.value = state.stationTitle;
-    DOM.setSinceInput.value = state.togetherSince;
+    DOM.setTitleInput.value = state.stationTitle || '';
+    DOM.setSinceInput.value = state.togetherSince || '';
+    DOM.setPasscodeInput.value = '';
+    DOM.setPasscodeInput.type = 'password';
+    DOM.toggleSetPassword.className = 'far fa-eye password-eye';
+
+    const favUrl = state.favicon || '';
+    DOM.setFaviconUrl.value = favUrl;
+    if (favUrl) {
+      DOM.faviconPreviewBox.innerHTML = `<img src="${favUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+    } else {
+      DOM.faviconPreviewBox.innerHTML = '❤️';
+    }
+
     DOM.settingsErrorMsg.classList.add('hidden');
     DOM.settingsModal.classList.remove('hidden');
   });
@@ -888,12 +956,14 @@ function initEventListeners() {
     e.preventDefault();
     const title = DOM.setTitleInput.value.trim();
     const togetherSince = DOM.setSinceInput.value;
+    const adminPasscode = DOM.setPasscodeInput.value;
+    const favicon = DOM.setFaviconUrl.value;
 
     try {
       const res = await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, togetherSince })
+        body: JSON.stringify({ title, togetherSince, adminPasscode, favicon })
       });
       const data = await res.json();
 
