@@ -747,6 +747,7 @@
     z-index: 100;
     padding: 20px;
     opacity: 1;
+    overflow-y: auto; /* Enable vertical scrolling on overlay when modal exceeds screen height */
     transition: var(--transition-premium);
   }
   
@@ -822,10 +823,63 @@
     gap: 30px;
   }
   
+  /* Lock background body scrolling when modal is open */
+  body.modal-open {
+    overflow: hidden !important;
+  }
+
   @media (max-width: 768px) {
     .form-grid {
       grid-template-columns: 1fr;
       gap: 20px;
+    }
+
+    /* Modal Mobile Adaptability Adjustments */
+    .modal-overlay {
+      align-items: flex-start; /* Align modal to top on mobile so the whole box is scrollable */
+      padding: 10px;
+    }
+
+    .modal-content {
+      margin-top: 15px; /* Premium spacing on mobile top/bottom */
+      margin-bottom: 30px;
+      border-radius: var(--border-radius-md);
+      max-height: none; /* Let height flow naturally and scroll within overlay */
+    }
+
+    .modal-header {
+      padding: 14px 18px;
+    }
+
+    .modal-header h2 {
+      font-size: 1.15rem;
+    }
+
+    form {
+      padding: 14px 18px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    /* Shrink giant upload area on mobile to save valuable screen estate */
+    .image-drag-area {
+      height: 130px !important;
+    }
+
+    .drag-prompt p {
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+
+    .drag-prompt span {
+      font-size: 0.75rem;
+    }
+
+    .modal-footer {
+      padding: 14px 18px;
+      margin-top: 15px;
     }
   }
   

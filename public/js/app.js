@@ -512,7 +512,7 @@ window.openEditAnnModal = function(id) {
   renderThumbnails();
 
   DOM.annErrorMsg.classList.add('hidden');
-  DOM.annModal.classList.remove('hidden');
+  openModal(DOM.annModal);
 };
 
 // 8.5 Open Read-Only Memory Detail page in new tab
@@ -546,18 +546,31 @@ window.deleteAnniversary = async function(id) {
   }
 };
 
+// Helper to open a modal with body scroll lock
+window.openModal = function(modal) {
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+};
+
+// Helper to close a modal and remove body scroll lock
+window.closeModal = function(modal) {
+  if (!modal) return;
+  modal.classList.add('hidden');
+  // Check if any other modal is still open
+  const visibleModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
+  if (visibleModals.length === 0) {
+    document.body.classList.remove('modal-open');
+  }
+};
+
 // ==========================================================================
 // EVENT LISTENERS & MODAL TOGGLERS
 // ==========================================================================
 
 function initEventListeners() {
   
-  // 1. Modal toggle clicks
-  const closeModal = (modal) => {
-    modal.classList.add('hidden');
-  };
-
-
+  // 1. Modal toggle clicks (handled by global closeModal)
 
   DOM.adminLockBtn.addEventListener('click', () => {
     if (state.isAdmin) {
@@ -568,7 +581,7 @@ function initEventListeners() {
     } else {
       DOM.passcodeInput.value = '';
       DOM.loginErrorMsg.classList.add('hidden');
-      DOM.loginModal.classList.remove('hidden');
+      openModal(DOM.loginModal);
       DOM.passcodeInput.focus();
     }
   });
@@ -653,7 +666,7 @@ function initEventListeners() {
     const day = String(now.getDate()).padStart(2, '0');
     DOM.annDateInput.value = `${year}-${month}-${day}`;
     DOM.annTypeInput.value = 'one-time';
-    DOM.annModal.classList.remove('hidden');
+    openModal(DOM.annModal);
   });
 
   // 5. Drag and Drop Image File Upload Area Handlers
@@ -803,7 +816,7 @@ function initEventListeners() {
     }
 
     DOM.settingsErrorMsg.classList.add('hidden');
-    DOM.settingsModal.classList.remove('hidden');
+    openModal(DOM.settingsModal);
   });
 
   DOM.settingsForm.addEventListener('submit', async (e) => {
