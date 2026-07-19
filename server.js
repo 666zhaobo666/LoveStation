@@ -216,7 +216,7 @@ function deletePhysicalFiles(filesToDelete, db) {
 
 // 3. Add Anniversary (Admin)
 app.post('/api/anniversaries', requireAdmin, (req, res) => {
-  const { title, date, type, tags, images, image, description } = req.body;
+  const { title, date, endDate, type, tags, images, image, description } = req.body;
   
   if (!title || !date) {
     return res.status(400).json({ error: 'Title and date are required.' });
@@ -234,6 +234,7 @@ app.post('/api/anniversaries', requireAdmin, (req, res) => {
     id: `ann-${Date.now()}`,
     title,
     date,
+    endDate: endDate || '',
     type: type || 'one-time',
     tags: Array.isArray(tags) ? tags : [],
     image: finalImages[0] || '', // backward compatibility
@@ -257,7 +258,7 @@ app.post('/api/anniversaries', requireAdmin, (req, res) => {
 // 4. Update Anniversary (Admin)
 app.put('/api/anniversaries/:id', requireAdmin, (req, res) => {
   const { id } = req.params;
-  const { title, date, type, tags, images, image, description } = req.body;
+  const { title, date, endDate, type, tags, images, image, description } = req.body;
 
   if (!title || !date) {
     return res.status(400).json({ error: 'Title and date are required.' });
@@ -283,6 +284,7 @@ app.put('/api/anniversaries/:id', requireAdmin, (req, res) => {
     ...db.anniversaries[index],
     title,
     date,
+    endDate: endDate || '',
     type: type || 'one-time',
     tags: Array.isArray(tags) ? tags : [],
     image: finalImages[0] || '', // backward compatibility

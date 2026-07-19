@@ -105,7 +105,9 @@
         // Render page title and headers
         document.title = `${item.title} - ${state.stationTitle}`;
         document.getElementById('detail-title').textContent = item.title;
-        document.getElementById('detail-date').innerHTML = `<i class="far fa-clock"></i> ${item.date}`;
+        const hasEndDate = item.endDate && item.endDate !== item.date;
+        const displayDate = hasEndDate ? `${item.date} ~ ${item.endDate}` : item.date;
+        document.getElementById('detail-date').innerHTML = `<i class="far fa-clock"></i> ${displayDate}`;
         document.getElementById('detail-desc').textContent = item.description || '这一天没有任何描述文字。';
 
         // Render tags
@@ -148,7 +150,34 @@
           return { daysLeft, anniversaryIndex };
         }
 
-        if (item.type === 'yearly') {
+        if (hasEndDate) {
+          // Time range / duration event
+          const startDate = new Date(item.date + 'T00:00:00');
+          const endDate = new Date(item.endDate + 'T00:00:00');
+          startDate.setHours(0, 0, 0, 0);
+          endDate.setHours(0, 0, 0, 0);
+
+          if (today < startDate) {
+            // 1. Not started yet
+            pillClass = 'countdown';
+            const diffTime = startDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            pillText = `倒计时 ${diffDays} 天开始 ⏳`;
+          } else if (today >= startDate && today <= endDate) {
+            // 2. In progress
+            pillClass = 'in-progress';
+            const currentDay = Math.floor((today - startDate) / (1000 * 60 * 60 * 24)) + 1;
+            const totalDays = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+            pillText = `进行中 (第 ${currentDay}/${totalDays} 天) ❤️`;
+          } else {
+            // 3. Completed
+            pillClass = 'countup';
+            const diffTime = today - endDate;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            const durationDays = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+            pillText = `已过去 ${diffDays} 天 (历时 ${durationDays} 天) ✨`;
+          }
+        } else if (item.type === 'yearly') {
           const { daysLeft, anniversaryIndex } = getYearlyEventStatus(item.date);
           const isBirthday = item.title.includes('生日') || (Array.isArray(item.tags) && item.tags.includes('生日'));
           if (daysLeft === 0) {

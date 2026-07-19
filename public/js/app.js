@@ -40,6 +40,7 @@ const DOM = {
   annIdInput: document.getElementById('ann-id-input'),
   annTitleInput: document.getElementById('ann-title-input'),
   annDateInput: document.getElementById('ann-date-input'),
+  annEndDateInput: document.getElementById('ann-end-date-input'),
   annTypeInput: document.getElementById('ann-type-input'),
   annTagsInput: document.getElementById('ann-tags-input'),
   annDescInput: document.getElementById('ann-desc-input'),
@@ -282,7 +283,36 @@ function renderAnniversaries() {
     let pillClass = '';
     let pillText = '';
 
-    if (item.type === 'yearly') {
+    const hasEndDate = item.endDate && item.endDate !== item.date;
+
+    if (hasEndDate) {
+      // Time range / duration event
+      const startDate = new Date(item.date + 'T00:00:00');
+      const endDate = new Date(item.endDate + 'T00:00:00');
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(0, 0, 0, 0);
+
+      if (today < startDate) {
+        // 1. Not started yet
+        pillClass = 'countdown';
+        const diffTime = startDate - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        pillText = `倒计时 ${diffDays} 天开始 ⏳`;
+      } else if (today >= startDate && today <= endDate) {
+        // 2. In progress
+        pillClass = 'in-progress';
+        const currentDay = Math.floor((today - startDate) / (1000 * 60 * 60 * 24)) + 1;
+        const totalDays = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+        pillText = `进行中 (第 ${currentDay}/${totalDays} 天) ❤️`;
+      } else {
+        // 3. Completed
+        pillClass = 'countup';
+        const diffTime = today - endDate;
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        const durationDays = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+        pillText = `已过去 ${diffDays} 天 (历时 ${durationDays} 天) ✨`;
+      }
+    } else if (item.type === 'yearly') {
       const { daysLeft, anniversaryIndex } = getYearlyEventStatus(item.date);
       const isBirthday = item.title.includes('生日') || (Array.isArray(item.tags) && item.tags.includes('生日'));
       
@@ -363,7 +393,7 @@ function renderAnniversaries() {
           ${adminDrawerHTML}
         </div>
         <div class="card-info">
-          <div class="card-date"><i class="far fa-clock"></i> ${item.date}</div>
+          <div class="card-date"><i class="far fa-clock"></i> ${hasEndDate ? `${item.date} ~ ${item.endDate}` : item.date}</div>
           <h2 class="card-title">${item.title}</h2>
           <p class="card-desc">${truncatedDesc}</p>
           ${readStoryBtnHTML}
@@ -471,6 +501,7 @@ window.openEditAnnModal = function(id) {
   DOM.annIdInput.value = item.id;
   DOM.annTitleInput.value = item.title;
   DOM.annDateInput.value = item.date;
+  DOM.annEndDateInput.value = item.endDate || '';
   DOM.annTypeInput.value = item.type || 'one-time';
   DOM.annTagsInput.value = Array.isArray(item.tags) ? item.tags.join(', ') : '';
   DOM.annDescInput.value = item.description || '';
@@ -611,6 +642,7 @@ function initEventListeners() {
     DOM.modalTitleText.innerHTML = '<i class="fas fa-calendar-plus"></i> 添加纪念日';
     DOM.annIdInput.value = '';
     DOM.annForm.reset();
+    DOM.annEndDateInput.value = '';
     resetImageUploadArea();
     DOM.annErrorMsg.classList.add('hidden');
     
@@ -669,6 +701,7 @@ function initEventListeners() {
     const id = DOM.annIdInput.value;
     const title = DOM.annTitleInput.value.trim();
     const date = DOM.annDateInput.value;
+    const endDate = DOM.annEndDateInput.value;
     const type = DOM.annTypeInput.value;
     const tagsRaw = DOM.annTagsInput.value;
     const description = DOM.annDescInput.value.trim();
@@ -679,7 +712,7 @@ function initEventListeners() {
       ? tagsRaw.split(/[,，\s]+/).map(t => t.trim()).filter(t => t.length > 0)
       : [];
 
-    const payload = { title, date, type, tags, description, images };
+    const payload = { title, date, endDate, type, tags, description, images };
     const method = id ? 'PUT' : 'POST';
     const url = id ? `/api/anniversaries/${id}` : '/api/anniversaries';
 

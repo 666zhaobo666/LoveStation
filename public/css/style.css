@@ -581,6 +581,14 @@
     color: #ff80ab;
     background: rgba(255, 51, 102, 0.1);
   }
+
+  .card-days-pill.in-progress {
+    background: linear-gradient(135deg, rgba(255, 51, 102, 0.15) 0%, rgba(255, 126, 185, 0.15) 50%, rgba(255, 191, 0, 0.15) 100%);
+    border: 1px solid rgba(255, 51, 102, 0.5);
+    color: #ff7eb9;
+    box-shadow: 0 0 15px rgba(255, 51, 102, 0.35);
+    animation: heartbeat 2s infinite ease-in-out;
+  }
   
   /* Edit/Delete overlay button drawer for Admin */
   .card-admin-drawer {
