@@ -9,7 +9,8 @@ const state = {
   togetherSince: '2024-05-20',
   stationTitle: '我们的爱之小站',
   anniversaries: [],
-  currentTagFilter: 'all'
+  currentTagFilter: 'all',
+  uploadedImages: [] // tracks images uploaded for the active form modal
 };
 
 // DOM References
@@ -38,18 +39,31 @@ const DOM = {
   annIdInput: document.getElementById('ann-id-input'),
   annTitleInput: document.getElementById('ann-title-input'),
   annDateInput: document.getElementById('ann-date-input'),
+  annTypeInput: document.getElementById('ann-type-input'),
   annTagsInput: document.getElementById('ann-tags-input'),
   annDescInput: document.getElementById('ann-desc-input'),
   annImageInput: document.getElementById('ann-image-input'),
-  annImageUrl: document.getElementById('ann-image-url'),
+  annImagesJson: document.getElementById('ann-images-json'),
   imageDragArea: document.getElementById('image-drag-area'),
   dragPrompt: document.getElementById('drag-prompt'),
-  imagePreviewContainer: document.getElementById('image-preview-container'),
-  imagePreview: document.getElementById('image-preview'),
-  removePreviewBtn: document.getElementById('remove-preview-btn'),
+  imagePreviewsGrid: document.getElementById('image-previews-grid'),
   uploadStatus: document.getElementById('upload-status'),
   annErrorMsg: document.getElementById('ann-error-msg'),
   saveAnnBtn: document.getElementById('save-ann-btn'),
+
+  // Memory Detail Modal
+  detailModal: document.getElementById('detail-modal'),
+  closeDetailModalBtn: document.getElementById('close-detail-modal-btn'),
+  detailCarouselContainer: document.getElementById('detail-carousel-container'),
+  carouselSlides: document.getElementById('carousel-slides'),
+  carouselPrevBtn: document.getElementById('carousel-prev'),
+  carouselNextBtn: document.getElementById('carousel-next'),
+  carouselDots: document.getElementById('carousel-dots'),
+  detailModalTitle: document.getElementById('detail-modal-title'),
+  detailDate: document.getElementById('detail-date'),
+  detailPill: document.getElementById('detail-pill'),
+  detailTags: document.getElementById('detail-tags'),
+  detailDesc: document.getElementById('detail-desc'),
   
   settingsModal: document.getElementById('settings-modal'),
   settingsForm: document.getElementById('settings-form'),
@@ -200,6 +214,43 @@ function renderTagsFilter() {
   });
 }
 
+// Helper to compute next occurrence details for a yearly recurring event
+function getYearlyEventStatus(originalDateStr) {
+  const originalDate = new Date(originalDateStr + 'T00:00:00');
+  const today = new Date();
+  
+  // Strip hours to calculate whole calendar day difference accurately
+  originalDate.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  
+  const currentYear = today.getFullYear();
+  const eventMonth = originalDate.getMonth();
+  const eventDay = originalDate.getDate();
+  
+  // Create this year's occurrence
+  let nextOccurrence = new Date(currentYear, eventMonth, eventDay);
+  nextOccurrence.setHours(0, 0, 0, 0);
+  
+  // If this year's occurrence has already passed, the next occurrence is next year
+  if (nextOccurrence < today) {
+    nextOccurrence.setFullYear(currentYear + 1);
+  }
+  
+  // Compute difference in days
+  const diffTime = nextOccurrence - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  // Compute anniversary count (e.g. occurrence's year minus original year)
+  const occurrenceYear = nextOccurrence.getFullYear();
+  const originalYear = originalDate.getFullYear();
+  const anniversaryIndex = occurrenceYear - originalYear;
+  
+  return {
+    daysLeft: diffDays,
+    anniversaryIndex: anniversaryIndex
+  };
+}
+
 // 6. Render anniversary list
 function renderAnniversaries() {
   // Filter anniversaries by tag
@@ -227,33 +278,53 @@ function renderAnniversaries() {
   today.setHours(0, 0, 0, 0);
 
   sorted.forEach(item => {
-    const eventDate = new Date(item.date + 'T00:00:00');
-    eventDate.setHours(0, 0, 0, 0);
-    
-    const diffTime = today - eventDate;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
     let pillClass = '';
     let pillText = '';
 
-    if (diffDays > 0) {
-      // Past event
-      pillClass = 'countup';
-      pillText = `已过去 ${diffDays} 天`;
-    } else if (diffDays === 0) {
-      // Happening today!
-      pillClass = 'countup';
-      pillText = '就在今天 ❤️';
+    if (item.type === 'yearly') {
+      const { daysLeft, anniversaryIndex } = getYearlyEventStatus(item.date);
+      const isBirthday = item.title.includes('生日') || (Array.isArray(item.tags) && item.tags.includes('生日'));
+      
+      if (daysLeft === 0) {
+        pillClass = 'countup';
+        pillText = isBirthday ? `今天生日啦！🎂 (满 ${anniversaryIndex} 岁)` : `今天第 ${anniversaryIndex} 周年纪念 ❤️`;
+      } else {
+        pillClass = 'countdown';
+        pillText = isBirthday 
+          ? `距离生日还有 ${daysLeft} 天 (将满 ${anniversaryIndex} 岁)` 
+          : `还有 ${daysLeft} 天 (第 ${anniversaryIndex} 周年)`;
+      }
     } else {
-      // Future event (countdown)
-      pillClass = 'countdown';
-      pillText = `倒计时 ${Math.abs(diffDays)} 天`;
+      // One-time event
+      const eventDate = new Date(item.date + 'T00:00:00');
+      eventDate.setHours(0, 0, 0, 0);
+      
+      const diffTime = today - eventDate;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays > 0) {
+        pillClass = 'countup';
+        pillText = `已过去 ${diffDays} 天`;
+      } else if (diffDays === 0) {
+        pillClass = 'countup';
+        pillText = '就在今天 ❤️';
+      } else {
+        pillClass = 'countdown';
+        pillText = `倒计时 ${Math.abs(diffDays)} 天`;
+      }
     }
 
-    // Media background
-    const hasImage = !!item.image;
+    // Media background with backward compatibility
+    const itemImages = Array.isArray(item.images) ? item.images : (item.image ? [item.image] : []);
+    const hasImage = itemImages.length > 0;
+    const coverUrl = hasImage ? itemImages[0] : '';
     const mediaHTML = hasImage
-      ? `<img class="card-image" src="${item.image}" alt="${item.title}" loading="lazy">`
+      ? `<img class="card-image" src="${coverUrl}" alt="${item.title}" loading="lazy">`
+      : '';
+
+    // Multiple images count overlay badge
+    const countBadgeHTML = itemImages.length > 1
+      ? `<div class="card-image-count-badge"><i class="fas fa-images"></i> ${itemImages.length} 张</div>`
       : '';
 
     // Tags list
@@ -269,22 +340,32 @@ function renderAnniversaries() {
     // Admin control buttons overlay drawer
     const adminDrawerHTML = state.isAdmin
       ? `<div class="card-admin-drawer">
-          <button class="card-icon-btn btn-edit" onclick="openEditAnnModal('${item.id}')" title="编辑回忆"><i class="fas fa-edit"></i></button>
-          <button class="card-icon-btn btn-delete" onclick="deleteAnniversary('${item.id}')" title="删除回忆"><i class="fas fa-trash-alt"></i></button>
+          <button class="card-icon-btn btn-edit" onclick="event.stopPropagation(); openEditAnnModal('${item.id}')" title="编辑回忆"><i class="fas fa-edit"></i></button>
+          <button class="card-icon-btn btn-delete" onclick="event.stopPropagation(); deleteAnniversary('${item.id}')" title="删除回忆"><i class="fas fa-trash-alt"></i></button>
          </div>`
       : '';
 
+    // Truncate long descriptions
+    const fullDesc = item.description || '这一天没有任何描述文字呢。但那些有你在的细节，我都深深记在了心里。';
+    const isTruncated = fullDesc.length > 80;
+    const truncatedDesc = isTruncated ? fullDesc.substring(0, 80) + '...' : fullDesc;
+    const readStoryBtnHTML = isTruncated
+      ? `<div class="card-read-story-btn">展开日记全文 <i class="fas fa-arrow-right"></i></div>`
+      : '';
+
     html += `
-      <article class="anniversary-card glass-panel" data-id="${item.id}">
+      <article class="anniversary-card glass-panel" data-id="${item.id}" onclick="openDetailModal('${item.id}', event)">
         <div class="card-media-box ${hasImage ? '' : 'no-image'}">
           ${mediaHTML}
+          ${countBadgeHTML}
           <div class="card-days-pill ${pillClass}">${pillText}</div>
           ${adminDrawerHTML}
         </div>
         <div class="card-info">
           <div class="card-date"><i class="far fa-clock"></i> ${item.date}</div>
           <h2 class="card-title">${item.title}</h2>
-          <p class="card-desc">${item.description || '这一天没有任何描述文字呢。但那些有你在的细节，我都深深记在了心里。'}</p>
+          <p class="card-desc">${truncatedDesc}</p>
+          ${readStoryBtnHTML}
           <div class="card-tags">${tagsHTML}</div>
         </div>
       </article>
@@ -294,35 +375,89 @@ function renderAnniversaries() {
   DOM.anniversariesGrid.innerHTML = html;
 }
 
-// 7. Handle Image Upload & Drag/Drop Preview
-async function handleImageUpload(file) {
-  if (!file) return;
+// Render thumbnails grid inside the form
+function renderThumbnails() {
+  if (state.uploadedImages.length === 0) {
+    DOM.imagePreviewsGrid.innerHTML = '';
+    DOM.imagePreviewsGrid.classList.add('hidden');
+    DOM.dragPrompt.classList.remove('hidden');
+    DOM.annImagesJson.value = '[]';
+    return;
+  }
+
+  DOM.dragPrompt.classList.add('hidden');
+  DOM.imagePreviewsGrid.classList.remove('hidden');
+  DOM.annImagesJson.value = JSON.stringify(state.uploadedImages);
+
+  let html = '';
+  state.uploadedImages.forEach((imgUrl, index) => {
+    html += `
+      <div class="thumb-preview-box" data-index="${index}">
+        <img src="${imgUrl}" alt="照片预览">
+        <button type="button" class="thumb-remove-btn" onclick="removeUploadedImage(${index})" title="移除此照片">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    `;
+  });
+  DOM.imagePreviewsGrid.innerHTML = html;
+}
+
+// Global hook to delete an uploaded image from active form state
+window.removeUploadedImage = function(index) {
+  state.uploadedImages.splice(index, 1);
+  renderThumbnails();
+  showToast('已移除选中的照片', 'info');
+};
+
+function resetImageUploadArea() {
+  state.uploadedImages = [];
+  renderThumbnails();
+  DOM.annImageInput.value = '';
+}
+
+// 7. Handle Image Uploads & Drag/Drop Previews (Multi-image)
+async function handleImageUploads(files) {
+  if (!files || files.length === 0) return;
   
   DOM.uploadStatus.classList.remove('hidden');
-  const formData = new FormData();
-  formData.append('image', file);
+  let successCount = 0;
+  let failCount = 0;
 
-  try {
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData
-    });
-    const data = await res.json();
-    
-    if (res.ok) {
-      DOM.annImageUrl.value = data.imageUrl;
-      DOM.imagePreview.src = data.imageUrl;
-      DOM.imagePreviewContainer.classList.remove('hidden');
-      DOM.dragPrompt.classList.add('hidden');
-      showToast('图片上传成功！');
-    } else {
-      showToast(data.error || '图片上传失败', 'error');
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        state.uploadedImages.push(data.imageUrl);
+        successCount++;
+      } else {
+        failCount++;
+        console.error('Upload fail:', data.error);
+      }
+    } catch (error) {
+      failCount++;
+      console.error('Upload exception:', error);
     }
-  } catch (error) {
-    showToast('图片上传发生错误，请重试', 'error');
-    console.error('Upload error:', error);
-  } finally {
-    DOM.uploadStatus.classList.add('hidden');
+  }
+
+  DOM.uploadStatus.classList.add('hidden');
+  renderThumbnails();
+
+  if (successCount > 0 && failCount === 0) {
+    showToast(`成功上传了 ${successCount} 张照片！`);
+  } else if (successCount > 0 && failCount > 0) {
+    showToast(`上传了 ${successCount} 张照片，另有 ${failCount} 张上传失败`, 'warning');
+  } else if (failCount > 0) {
+    showToast('照片上传失败，请重试', 'error');
   }
 }
 
@@ -335,30 +470,173 @@ window.openEditAnnModal = function(id) {
   DOM.annIdInput.value = item.id;
   DOM.annTitleInput.value = item.title;
   DOM.annDateInput.value = item.date;
+  DOM.annTypeInput.value = item.type || 'one-time';
   DOM.annTagsInput.value = Array.isArray(item.tags) ? item.tags.join(', ') : '';
   DOM.annDescInput.value = item.description || '';
-  DOM.annImageUrl.value = item.image || '';
 
-  // Handle preview rendering
-  if (item.image) {
-    DOM.imagePreview.src = item.image;
-    DOM.imagePreviewContainer.classList.remove('hidden');
-    DOM.dragPrompt.classList.add('hidden');
-  } else {
-    resetImageUploadArea();
-  }
+  // Handle multi-image mapping with backward compatibility
+  const itemImages = Array.isArray(item.images) ? item.images : (item.image ? [item.image] : []);
+  state.uploadedImages = [...itemImages];
+  renderThumbnails();
 
   DOM.annErrorMsg.classList.add('hidden');
   DOM.annModal.classList.remove('hidden');
 };
 
-function resetImageUploadArea() {
-  DOM.annImageUrl.value = '';
-  DOM.imagePreview.src = '';
-  DOM.imagePreviewContainer.classList.add('hidden');
-  DOM.dragPrompt.classList.remove('hidden');
-  DOM.annImageInput.value = '';
-}
+// 8.5 Open Read-Only Memory Detail Modal with Slide Carousel
+let currentSlideIndex = 0;
+let carouselSlideElements = [];
+
+window.openDetailModal = function(id, event) {
+  // If the click is on admin buttons, don't open the detail modal
+  if (event && (event.target.closest('.card-admin-drawer') || event.target.closest('.card-icon-btn'))) {
+    return;
+  }
+
+  const item = state.anniversaries.find(ann => ann.id === id);
+  if (!item) return;
+
+  // Set title and details
+  DOM.detailModalTitle.textContent = item.title;
+  DOM.detailDate.innerHTML = `<i class="far fa-clock"></i> ${item.date}`;
+  DOM.detailDesc.textContent = item.description || '这一天没有任何描述文字呢。但那些有你在的细节，我都深深记在了心里。';
+
+  // Render tags
+  let tagsHTML = '';
+  if (Array.isArray(item.tags)) {
+    item.tags.forEach(tag => {
+      if (tag.trim()) {
+        tagsHTML += `<span class="card-tag">#${tag}</span>`;
+      }
+    });
+  }
+  DOM.detailTags.innerHTML = tagsHTML;
+
+  // Calculate pill text
+  let pillText = '';
+  let pillClass = '';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (item.type === 'yearly') {
+    const { daysLeft, anniversaryIndex } = getYearlyEventStatus(item.date);
+    const isBirthday = item.title.includes('生日') || (Array.isArray(item.tags) && item.tags.includes('生日'));
+    
+    if (daysLeft === 0) {
+      pillClass = 'countup';
+      pillText = isBirthday ? `今天生日啦！🎂 (满 ${anniversaryIndex} 岁)` : `今天第 ${anniversaryIndex} 周年纪念 ❤️`;
+    } else {
+      pillClass = 'countdown';
+      pillText = isBirthday 
+        ? `距离生日还有 ${daysLeft} 天 (将满 ${anniversaryIndex} 岁)` 
+        : `还有 ${daysLeft} 天 (第 ${anniversaryIndex} 周年)`;
+    }
+  } else {
+    const eventDate = new Date(item.date + 'T00:00:00');
+    eventDate.setHours(0, 0, 0, 0);
+    const diffTime = today - eventDate;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 0) {
+      pillClass = 'countup';
+      pillText = `已过去 ${diffDays} 天`;
+    } else if (diffDays === 0) {
+      pillClass = 'countup';
+      pillText = '就在今天 ❤️';
+    } else {
+      pillClass = 'countdown';
+      pillText = `倒计时 ${Math.abs(diffDays)} 天`;
+    }
+  }
+
+  DOM.detailPill.textContent = pillText;
+  DOM.detailPill.className = `card-days-pill ${pillClass}`;
+
+  // Handle Carousel / Media Rendering
+  const itemImages = Array.isArray(item.images) ? item.images : (item.image ? [item.image] : []);
+  
+  if (itemImages.length > 0) {
+    DOM.detailCarouselContainer.classList.remove('hidden');
+    
+    // Render slides
+    let slidesHTML = '';
+    itemImages.forEach((imgUrl, index) => {
+      slidesHTML += `
+        <div class="carousel-slide ${index === 0 ? 'active' : ''}">
+          <img src="${imgUrl}" alt="${item.title} 照片 ${index + 1}">
+        </div>
+      `;
+    });
+    DOM.carouselSlides.innerHTML = slidesHTML;
+
+    // Render dot indicators
+    let dotsHTML = '';
+    if (itemImages.length > 1) {
+      itemImages.forEach((_, index) => {
+        dotsHTML += `<span class="carousel-dot ${index === 0 ? 'active' : ''}" onclick="showSlide(${index})"></span>`;
+      });
+      DOM.carouselPrevBtn.classList.remove('hidden');
+      DOM.carouselNextBtn.classList.remove('hidden');
+    } else {
+      DOM.carouselPrevBtn.classList.add('hidden');
+      DOM.carouselNextBtn.classList.add('hidden');
+    }
+    DOM.carouselDots.innerHTML = dotsHTML;
+
+    // Init carousel controls
+    currentSlideIndex = 0;
+    carouselSlideElements = Array.from(DOM.carouselSlides.getElementsByClassName('carousel-slide'));
+    
+  } else {
+    DOM.detailCarouselContainer.classList.add('hidden');
+    DOM.carouselSlides.innerHTML = '';
+    DOM.carouselDots.innerHTML = '';
+  }
+
+  // Show Modal
+  DOM.detailModal.classList.remove('hidden');
+};
+
+// Slide navigation handlers
+window.showSlide = function(index) {
+  if (carouselSlideElements.length <= 1) return;
+
+  // Wrap around boundaries
+  if (index >= carouselSlideElements.length) {
+    currentSlideIndex = 0;
+  } else if (index < 0) {
+    currentSlideIndex = carouselSlideElements.length - 1;
+  } else {
+    currentSlideIndex = index;
+  }
+
+  // Update active slide class
+  carouselSlideElements.forEach((slide, idx) => {
+    if (idx === currentSlideIndex) {
+      slide.classList.add('active');
+    } else {
+      slide.classList.remove('active');
+    }
+  });
+
+  // Update active dot indicators
+  const dots = Array.from(DOM.carouselDots.getElementsByClassName('carousel-dot'));
+  dots.forEach((dot, idx) => {
+    if (idx === currentSlideIndex) {
+      dot.classList.add('active');
+    } else {
+      dot.classList.remove('active');
+    }
+  });
+};
+
+window.nextSlide = function() {
+  showSlide(currentSlideIndex + 1);
+};
+
+window.prevSlide = function() {
+  showSlide(currentSlideIndex - 1);
+};
 
 // 9. Delete Anniversary
 window.deleteAnniversary = async function(id) {
@@ -392,6 +670,28 @@ function initEventListeners() {
   const closeModal = (modal) => {
     modal.classList.add('hidden');
   };
+
+  // Close detail modal clicks
+  DOM.closeDetailModalBtn.addEventListener('click', () => {
+    DOM.detailModal.classList.add('hidden');
+  });
+
+  DOM.detailModal.addEventListener('click', (e) => {
+    if (e.target === DOM.detailModal) {
+      DOM.detailModal.classList.add('hidden');
+    }
+  });
+
+  // Carousel click listeners
+  DOM.carouselPrevBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    prevSlide();
+  });
+
+  DOM.carouselNextBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    nextSlide();
+  });
 
   DOM.adminLockBtn.addEventListener('click', () => {
     if (state.isAdmin) {
@@ -485,20 +785,20 @@ function initEventListeners() {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     DOM.annDateInput.value = `${year}-${month}-${day}`;
-
+    DOM.annTypeInput.value = 'one-time';
     DOM.annModal.classList.remove('hidden');
   });
 
   // 5. Drag and Drop Image File Upload Area Handlers
   DOM.imageDragArea.addEventListener('click', (e) => {
-    // Avoid click bubbling from remove button
-    if (e.target.closest('#remove-preview-btn')) return;
+    // Avoid click bubbling from thumbnail delete button
+    if (e.target.closest('.thumb-remove-btn')) return;
     DOM.annImageInput.click();
   });
 
   DOM.annImageInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
-      handleImageUpload(e.target.files[0]);
+      handleImageUploads(e.target.files);
     }
   });
 
@@ -523,14 +823,8 @@ function initEventListeners() {
     const dt = e.dataTransfer;
     const files = dt.files;
     if (files.length > 0) {
-      handleImageUpload(files[0]);
+      handleImageUploads(files);
     }
-  });
-
-  DOM.removePreviewBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    resetImageUploadArea();
-    showToast('照片预览已被移除', 'info');
   });
 
   // 6. Submit Anniversary Form (Add or Update)
@@ -540,16 +834,17 @@ function initEventListeners() {
     const id = DOM.annIdInput.value;
     const title = DOM.annTitleInput.value.trim();
     const date = DOM.annDateInput.value;
+    const type = DOM.annTypeInput.value;
     const tagsRaw = DOM.annTagsInput.value;
     const description = DOM.annDescInput.value.trim();
-    const image = DOM.annImageUrl.value;
+    const images = state.uploadedImages;
 
     // Convert comma/space-separated tags to list of clean tags
     const tags = tagsRaw
       ? tagsRaw.split(/[,，\s]+/).map(t => t.trim()).filter(t => t.length > 0)
       : [];
 
-    const payload = { title, date, tags, description, image };
+    const payload = { title, date, type, tags, description, images };
     const method = id ? 'PUT' : 'POST';
     const url = id ? `/api/anniversaries/${id}` : '/api/anniversaries';
 

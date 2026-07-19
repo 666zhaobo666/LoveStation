@@ -29,7 +29,8 @@ const DEFAULT_DB = {
       id: "ann-1",
       title: "我们第一次相遇",
       date: "2024-02-14",
-      tags: ["遇见", "纪念日"],
+      type: "one-time",
+      tags: ["遇见", "回忆"],
       image: "",
       description: "那天阳光正好，在咖啡馆的角落里，命运让我们相遇。第一眼看到你，就觉得世界突然亮了起来。"
     },
@@ -37,7 +38,8 @@ const DEFAULT_DB = {
       id: "ann-2",
       title: "在一起的第一天",
       date: "2024-05-20",
-      tags: ["恋爱", "里程碑"],
+      type: "yearly",
+      tags: ["恋爱", "纪念日"],
       image: "",
       description: "520，在这个充满爱意的日子里，你答应了我的表白。那一刻的激动与喜悦，至今记忆犹新。我们要一直走下去！"
     },
@@ -45,9 +47,19 @@ const DEFAULT_DB = {
       id: "ann-3",
       title: "第一次一起旅行",
       date: "2024-10-01",
+      type: "one-time",
       tags: ["旅行", "生活"],
       image: "",
       description: "国庆假期，我们一起去了海边。吹着海风，看着晚霞，牵着手在沙滩上漫步。那是我们最浪漫的慢时光。"
+    },
+    {
+      id: "ann-4",
+      title: "宝贝的生日 🎂",
+      date: "1999-10-15",
+      type: "yearly",
+      tags: ["生日", "生活"],
+      image: "",
+      description: "祝我的大宝贝生日快乐！新的一岁，愿你被这个世界温柔以待，每天都有甜甜的笑容。有你在的每一天都是甜的！"
     }
   ],
   settings: {
@@ -170,28 +182,62 @@ app.get('/api/anniversaries', (req, res) => {
   res.json(db);
 });
 
+// Helper to delete physical files from uploads directory if they are no longer referenced in the database
+function deletePhysicalFiles(filesToDelete, db) {
+  if (!Array.isArray(filesToDelete)) return;
+  
+  filesToDelete.forEach(filePath => {
+    if (!filePath || !filePath.startsWith('/uploads/')) return;
+    
+    // Check if this file is still used by ANY anniversary in the database
+    const isStillUsed = db.anniversaries.some(ann => {
+      const annImages = Array.isArray(ann.images) ? ann.images : (ann.image ? [ann.image] : []);
+      return annImages.includes(filePath);
+    });
+    
+    if (!isStillUsed) {
+      const filename = filePath.substring('/uploads/'.length);
+      const physicalPath = path.join(UPLOADS_DIR, filename);
+      if (fs.existsSync(physicalPath)) {
+        fs.unlink(physicalPath, (err) => {
+          if (err) console.error('Error deleting physical file:', err);
+        });
+      }
+    }
+  });
+}
+
 // 3. Add Anniversary (Admin)
 app.post('/api/anniversaries', requireAdmin, (req, res) => {
-  const { title, date, tags, image, description } = req.body;
+  const { title, date, type, tags, images, image, description } = req.body;
   
   if (!title || !date) {
     return res.status(400).json({ error: 'Title and date are required.' });
   }
 
   const db = readDB();
+  
+  // Set up backward-compatible image/images support
+  let finalImages = Array.isArray(images) ? images : [];
+  if (finalImages.length === 0 && image) {
+    finalImages.push(image);
+  }
+
   const newAnniversary = {
     id: `ann-${Date.now()}`,
     title,
     date,
+    type: type || 'one-time',
     tags: Array.isArray(tags) ? tags : [],
-    image: image || '',
+    image: finalImages[0] || '', // backward compatibility
+    images: finalImages,
     description: description || '',
     createdAt: new Date().toISOString()
   };
 
   db.anniversaries.push(newAnniversary);
   
-  // Sort anniversaries chronologically (oldest first or newest first - we sort oldest first in storage, frontend can reverse if needed)
+  // Sort anniversaries chronologically (oldest first)
   db.anniversaries.sort((a, b) => new Date(a.date) - new Date(b.date));
 
   if (writeDB(db)) {
@@ -204,7 +250,7 @@ app.post('/api/anniversaries', requireAdmin, (req, res) => {
 // 4. Update Anniversary (Admin)
 app.put('/api/anniversaries/:id', requireAdmin, (req, res) => {
   const { id } = req.params;
-  const { title, date, tags, image, description } = req.body;
+  const { title, date, type, tags, images, image, description } = req.body;
 
   if (!title || !date) {
     return res.status(400).json({ error: 'Title and date are required.' });
@@ -217,28 +263,30 @@ app.put('/api/anniversaries/:id', requireAdmin, (req, res) => {
     return res.status(404).json({ error: 'Anniversary not found.' });
   }
 
-  const oldImage = db.anniversaries[index].image;
+  const oldImages = db.anniversaries[index].images || (db.anniversaries[index].image ? [db.anniversaries[index].image] : []);
+
+  let finalImages = oldImages;
+  if (images !== undefined) {
+    finalImages = Array.isArray(images) ? images : [];
+  } else if (image !== undefined) {
+    finalImages = image ? [image] : [];
+  }
 
   db.anniversaries[index] = {
     ...db.anniversaries[index],
     title,
     date,
+    type: type || 'one-time',
     tags: Array.isArray(tags) ? tags : [],
-    image: image !== undefined ? image : oldImage,
+    image: finalImages[0] || '', // backward compatibility
+    images: finalImages,
     description: description || '',
     updatedAt: new Date().toISOString()
   };
 
-  // If the image was updated and there was an old image, delete the old image file if it's no longer used
-  if (image && oldImage && oldImage !== image && oldImage.startsWith('/uploads/')) {
-    const filename = oldImage.substring('/uploads/'.length);
-    const oldFilePath = path.join(UPLOADS_DIR, filename);
-    if (fs.existsSync(oldFilePath)) {
-      fs.unlink(oldFilePath, (err) => {
-        if (err) console.error('Error deleting replaced image:', err);
-      });
-    }
-  }
+  // Find physical files that were in oldImages but are no longer in finalImages, and garbage collect them
+  const filesToDelete = oldImages.filter(file => !finalImages.includes(file));
+  deletePhysicalFiles(filesToDelete, db);
 
   // Resort after date changes
   db.anniversaries.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -260,20 +308,12 @@ app.delete('/api/anniversaries/:id', requireAdmin, (req, res) => {
     return res.status(404).json({ error: 'Anniversary not found.' });
   }
 
-  const imageToDelete = db.anniversaries[index].image;
+  const oldImages = db.anniversaries[index].images || (db.anniversaries[index].image ? [db.anniversaries[index].image] : []);
   db.anniversaries.splice(index, 1);
 
   if (writeDB(db)) {
-    // Delete physical file as well
-    if (imageToDelete && imageToDelete.startsWith('/uploads/')) {
-      const filename = imageToDelete.substring('/uploads/'.length);
-      const filePath = path.join(UPLOADS_DIR, filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlink(filePath, (err) => {
-          if (err) console.error('Error deleting physical file:', err);
-        });
-      }
-    }
+    // Delete physical files that are no longer referenced anywhere else
+    deletePhysicalFiles(oldImages, db);
     res.json({ success: true, message: 'Anniversary deleted.' });
   } else {
     res.status(500).json({ error: 'Failed to write to database.' });

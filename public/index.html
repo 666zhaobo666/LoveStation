@@ -162,6 +162,14 @@
             </div>
 
             <div class="form-group">
+              <label for="ann-type-input">重复类型 *</label>
+              <select id="ann-type-input">
+                <option value="one-time">一次性日子 (如：第一次相遇、第一次看电影)</option>
+                <option value="yearly">每年重复日子 (如：生日、结婚纪念日、恋爱周年)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
               <label for="ann-tags-input">标签 (逗号或空格分隔)</label>
               <input type="text" id="ann-tags-input" placeholder="如：恋爱, 旅行, 生日">
               <p class="form-help-text">用于快速分类过滤，建议每项不超过 4 个字</p>
@@ -178,20 +186,16 @@
             <div class="form-group">
               <label>回忆照片 (上传支持 JPG、PNG、WEBP)</label>
               <div id="image-drag-area" class="image-drag-area">
-                <input type="file" id="ann-image-input" accept="image/*" class="hidden">
+                <input type="file" id="ann-image-input" accept="image/*" class="hidden" multiple>
                 <div id="drag-prompt" class="drag-prompt">
                   <i class="fas fa-cloud-upload-alt upload-icon"></i>
                   <p>点击或拖拽图片到这里上传</p>
-                  <span>最大支持 10MB 的高质量图片</span>
+                  <span>支持上传多张图片（支持拖拽与多选）</span>
                 </div>
-                <div id="image-preview-container" class="image-preview-container hidden">
-                  <img id="image-preview" src="" alt="照片预览">
-                  <button type="button" id="remove-preview-btn" class="remove-preview-btn" title="移除照片">
-                    <i class="fas fa-times"></i>
-                  </button>
-                </div>
+                <!-- Previews grid for multiple images -->
+                <div id="image-previews-grid" class="image-previews-grid hidden"></div>
               </div>
-              <input type="hidden" id="ann-image-url">
+              <input type="hidden" id="ann-images-json">
               <!-- Upload status overlay -->
               <div id="upload-status" class="upload-status hidden">
                 <i class="fas fa-spinner fa-spin"></i> 上传中...
@@ -232,6 +236,49 @@
           <button type="submit" class="btn btn-primary">保存设置</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- 5. DIARY DETAIL READ-ONLY MODAL -->
+  <div id="detail-modal" class="modal-overlay hidden animated-popup">
+    <div class="modal-content glass-panel detail-modal-content">
+      <div class="modal-header">
+        <h3 id="detail-modal-title" class="detail-modal-title">回忆详情</h3>
+        <button type="button" class="close-btn close-detail-modal" id="close-detail-modal-btn" title="关闭">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="detail-modal-body">
+        <!-- Interactive Multi-Image Slideshow Carousel -->
+        <div id="detail-carousel-container" class="carousel-container hidden">
+          <div id="carousel-slides" class="carousel-slides">
+            <!-- Image slides will be generated here -->
+          </div>
+          <!-- Nav Arrows -->
+          <button type="button" class="carousel-btn prev-btn" id="carousel-prev" title="上一张">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <button type="button" class="carousel-btn next-btn" id="carousel-next" title="下一张">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+          <!-- Slide Indicator Dots -->
+          <div id="carousel-dots" class="carousel-dots"></div>
+        </div>
+
+        <!-- Event Metadata Details -->
+        <div class="detail-meta-row">
+          <span id="detail-date" class="detail-date"><i class="far fa-clock"></i> 2024-05-20</span>
+          <span id="detail-pill" class="card-days-pill countup">已过去 0 天</span>
+        </div>
+
+        <div id="detail-tags" class="detail-tags-box"></div>
+
+        <!-- Rich Typography Description -->
+        <div class="detail-description-container">
+          <p id="detail-desc" class="detail-desc-text"></p>
+        </div>
+      </div>
     </div>
   </div>
 
