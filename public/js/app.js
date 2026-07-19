@@ -55,11 +55,7 @@ const DOM = {
   // Memory Detail Modal
   detailModal: document.getElementById('detail-modal'),
   closeDetailModalBtn: document.getElementById('close-detail-modal-btn'),
-  detailCarouselContainer: document.getElementById('detail-carousel-container'),
-  carouselSlides: document.getElementById('carousel-slides'),
-  carouselPrevBtn: document.getElementById('carousel-prev'),
-  carouselNextBtn: document.getElementById('carousel-next'),
-  carouselDots: document.getElementById('carousel-dots'),
+  detailPhotosStream: document.getElementById('detail-photos-stream'),
   detailModalTitle: document.getElementById('detail-modal-title'),
   detailDate: document.getElementById('detail-date'),
   detailPill: document.getElementById('detail-pill'),
@@ -497,10 +493,7 @@ window.openEditAnnModal = function(id) {
   DOM.annModal.classList.remove('hidden');
 };
 
-// 8.5 Open Read-Only Memory Detail Modal with Slide Carousel
-let currentSlideIndex = 0;
-let carouselSlideElements = [];
-
+// 8.5 Open Read-Only Memory Detail Modal with Vertical Photo Stream
 window.openDetailModal = function(id, event) {
   // If the click is on admin buttons, don't open the detail modal
   if (event && (event.target.closest('.card-admin-drawer') || event.target.closest('.card-icon-btn'))) {
@@ -566,90 +559,35 @@ window.openDetailModal = function(id, event) {
   DOM.detailPill.textContent = pillText;
   DOM.detailPill.className = `card-days-pill ${pillClass}`;
 
-  // Handle Carousel / Media Rendering
+  // Handle Vertical Photo Stream Media Rendering
   const itemImages = Array.isArray(item.images) ? item.images : (item.image ? [item.image] : []);
   
   if (itemImages.length > 0) {
-    DOM.detailCarouselContainer.classList.remove('hidden');
+    DOM.detailPhotosStream.classList.remove('hidden');
     
-    // Render slides
-    let slidesHTML = '';
+    // Render photos stacked vertically
+    let streamHTML = '';
     itemImages.forEach((imgUrl, index) => {
-      slidesHTML += `
-        <div class="carousel-slide ${index === 0 ? 'active' : ''}">
-          <img src="${imgUrl}" alt="${item.title} 照片 ${index + 1}">
+      streamHTML += `
+        <div class="stream-photo-item">
+          <img src="${imgUrl}" alt="${item.title} 照片 ${index + 1}" loading="lazy">
         </div>
       `;
     });
-    DOM.carouselSlides.innerHTML = slidesHTML;
-
-    // Render dot indicators
-    let dotsHTML = '';
-    if (itemImages.length > 1) {
-      itemImages.forEach((_, index) => {
-        dotsHTML += `<span class="carousel-dot ${index === 0 ? 'active' : ''}" onclick="showSlide(${index})"></span>`;
-      });
-      DOM.carouselPrevBtn.classList.remove('hidden');
-      DOM.carouselNextBtn.classList.remove('hidden');
-    } else {
-      DOM.carouselPrevBtn.classList.add('hidden');
-      DOM.carouselNextBtn.classList.add('hidden');
-    }
-    DOM.carouselDots.innerHTML = dotsHTML;
-
-    // Init carousel controls
-    currentSlideIndex = 0;
-    carouselSlideElements = Array.from(DOM.carouselSlides.getElementsByClassName('carousel-slide'));
-    
+    DOM.detailPhotosStream.innerHTML = streamHTML;
   } else {
-    DOM.detailCarouselContainer.classList.add('hidden');
-    DOM.carouselSlides.innerHTML = '';
-    DOM.carouselDots.innerHTML = '';
+    DOM.detailPhotosStream.classList.add('hidden');
+    DOM.detailPhotosStream.innerHTML = '';
   }
 
   // Show Modal
   DOM.detailModal.classList.remove('hidden');
-};
-
-// Slide navigation handlers
-window.showSlide = function(index) {
-  if (carouselSlideElements.length <= 1) return;
-
-  // Wrap around boundaries
-  if (index >= carouselSlideElements.length) {
-    currentSlideIndex = 0;
-  } else if (index < 0) {
-    currentSlideIndex = carouselSlideElements.length - 1;
-  } else {
-    currentSlideIndex = index;
+  
+  // Auto scroll the modal body to top when opened
+  const modalBody = DOM.detailModal.querySelector('.detail-modal-body');
+  if (modalBody) {
+    modalBody.scrollTop = 0;
   }
-
-  // Update active slide class
-  carouselSlideElements.forEach((slide, idx) => {
-    if (idx === currentSlideIndex) {
-      slide.classList.add('active');
-    } else {
-      slide.classList.remove('active');
-    }
-  });
-
-  // Update active dot indicators
-  const dots = Array.from(DOM.carouselDots.getElementsByClassName('carousel-dot'));
-  dots.forEach((dot, idx) => {
-    if (idx === currentSlideIndex) {
-      dot.classList.add('active');
-    } else {
-      dot.classList.remove('active');
-    }
-  });
-};
-
-window.nextSlide = function() {
-  showSlide(currentSlideIndex + 1);
-};
-
-window.prevSlide = function() {
-  showSlide(currentSlideIndex - 1);
 };
 
 // 9. Delete Anniversary
@@ -696,16 +634,6 @@ function initEventListeners() {
     }
   });
 
-  // Carousel click listeners
-  DOM.carouselPrevBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    prevSlide();
-  });
-
-  DOM.carouselNextBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    nextSlide();
-  });
 
   DOM.adminLockBtn.addEventListener('click', () => {
     if (state.isAdmin) {
