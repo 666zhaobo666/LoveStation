@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我们的爱之小站 - 情侣纪念日与回忆录</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="一个高颜值的、轻量级情侣纪念日与回忆管理小站，支持倒计时、多媒体记录、标签过滤、权限管理及一键数据备份恢复。">
+  <meta name="keywords" content="情侣纪念日, 恋爱计时器, 倒数日, 自托管, 开源">
+  <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❤️</text></svg>">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome for Premium Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Dynamic Glowing Background Backdrops -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+  <div class="bg-glow bg-glow-3"></div>
+
+  <div class="app-container">
+    
+    <!-- HEADER & HERO COUNTDOWN -->
+    <header class="header-section">
+      <div class="header-top">
+        <h1 id="station-title" class="logo">我们的爱之小站</h1>
+        
+        <!-- Admin Authorization Control Lock -->
+        <button id="admin-lock-btn" class="admin-lock-btn" title="管理员登录">
+          <i id="lock-icon" class="fas fa-lock"></i>
+          <span id="lock-text">访客模式</span>
+        </button>
+      </div>
+
+      <!-- Hero Timer Card -->
+      <div class="hero-timer-card glass-panel">
+        <div class="heart-pulse-box">
+          <i class="fas fa-heart heart-pulse"></i>
+        </div>
+        <p class="timer-subtext">我们已经携手走过了</p>
+        <div class="timer-main">
+          <span id="countdown-days" class="glowing-text">0</span>
+          <span class="timer-unit">天</span>
+        </div>
+        <div class="timer-meta-info">
+          <span class="meta-item">
+            <i class="far fa-calendar-alt"></i> 相爱起点：<span id="together-date-text">2024-05-20</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ADMIN ACTION CONTROLS (Visible when logged in) -->
+    <div id="admin-controls-panel" class="admin-controls-panel glass-panel hidden">
+      <div class="panel-header">
+        <h3><i class="fas fa-sliders-h"></i> 管理控制台</h3>
+        <span class="badge admin-badge">管理员</span>
+      </div>
+      <div class="panel-buttons">
+        <button id="add-ann-btn" class="btn btn-primary"><i class="fas fa-plus"></i> 添加新纪念日</button>
+        <button id="edit-settings-btn" class="btn btn-secondary"><i class="fas fa-cog"></i> 站点配置</button>
+        <button id="export-btn" class="btn btn-info" title="导出打包所有数据与图片为 ZIP 文件"><i class="fas fa-download"></i> 一键导出备份</button>
+        <button id="import-trigger-btn" class="btn btn-warning" title="导入 ZIP 备份包恢复整站数据"><i class="fas fa-upload"></i> 一键导入恢复</button>
+        <button id="logout-btn" class="btn btn-danger"><i class="fas fa-sign-out-alt"></i> 退出管理</button>
+      </div>
+      <!-- Hidden file input for import -->
+      <input type="file" id="backup-file-input" accept=".zip" class="hidden">
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="filter-section">
+      <div class="filter-wrapper glass-panel">
+        <span class="filter-label"><i class="fas fa-tags"></i> 分类过滤：</span>
+        <div id="tags-container" class="tags-container">
+          <button class="tag-filter active" data-tag="all">全部</button>
+          <!-- Dynamic tags will be injected here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- TIMELINE CONTAINER -->
+    <main class="timeline-container">
+      <!-- Empty State -->
+      <div id="empty-state" class="empty-state glass-panel hidden">
+        <i class="far fa-calendar-plus empty-icon"></i>
+        <h3>还没有记录纪念日</h3>
+        <p>开启管理员模式，添加你们的第一个回忆吧！</p>
+      </div>
+
+      <!-- Anniversary Timeline Grid -->
+      <div id="anniversaries-grid" class="anniversaries-grid">
+        <!-- Dynamic cards will be injected here -->
+      </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer-note">
+      <p>LoveStation &copy; 2026. Made with ❤️ for your everlasting love.</p>
+    </footer>
+
+  </div> <!-- End App Container -->
+
+
+  <!-- ================= MODALS (POPUP WINDOWS) ================= -->
+
+  <!-- 1. LOGIN PASSCODE MODAL -->
+  <div id="login-modal" class="modal-overlay hidden">
+    <div class="modal-content glass-panel animated-popup">
+      <div class="modal-header">
+        <h2><i class="fas fa-user-shield"></i> 管理员登录</h2>
+        <button class="close-modal-btn">&times;</button>
+      </div>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="passcode-input">输入解锁密码</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="passcode-input" placeholder="请输入管理员密码..." required>
+            <i id="toggle-password" class="far fa-eye password-eye"></i>
+          </div>
+          <p class="form-help-text">解锁后即可添加、编辑、删除纪念日并导入导出备份</p>
+        </div>
+        <div id="login-error-msg" class="error-msg hidden"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary cancel-modal">取消</button>
+          <button type="submit" class="btn btn-primary">验证解锁</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. ADD / EDIT ANNIVERSARY MODAL -->
+  <div id="ann-modal" class="modal-overlay hidden">
+    <div class="modal-content glass-panel animated-popup large-modal">
+      <div class="modal-header">
+        <h2 id="modal-title-text"><i class="fas fa-calendar-plus"></i> 添加纪念日</h2>
+        <button class="close-modal-btn">&times;</button>
+      </div>
+      <form id="ann-form">
+        <input type="hidden" id="ann-id-input">
+        
+        <div class="form-grid">
+          <!-- Left fields -->
+          <div class="form-left">
+            <div class="form-group">
+              <label for="ann-title-input">纪念日主题 *</label>
+              <input type="text" id="ann-title-input" placeholder="如：第一次看电影 / 她的生日..." required>
+            </div>
+            
+            <div class="form-group">
+              <label for="ann-date-input">发生日期 *</label>
+              <input type="date" id="ann-date-input" required>
+            </div>
+
+            <div class="form-group">
+              <label for="ann-tags-input">标签 (逗号或空格分隔)</label>
+              <input type="text" id="ann-tags-input" placeholder="如：恋爱, 旅行, 生日">
+              <p class="form-help-text">用于快速分类过滤，建议每项不超过 4 个字</p>
+            </div>
+
+            <div class="form-group">
+              <label for="ann-desc-input">回忆碎碎念 / 描述</label>
+              <textarea id="ann-desc-input" rows="4" placeholder="在这里写下那些温暖的小事和细节..."></textarea>
+            </div>
+          </div>
+
+          <!-- Right: Image upload & preview -->
+          <div class="form-right">
+            <div class="form-group">
+              <label>回忆照片 (上传支持 JPG、PNG、WEBP)</label>
+              <div id="image-drag-area" class="image-drag-area">
+                <input type="file" id="ann-image-input" accept="image/*" class="hidden">
+                <div id="drag-prompt" class="drag-prompt">
+                  <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                  <p>点击或拖拽图片到这里上传</p>
+                  <span>最大支持 10MB 的高质量图片</span>
+                </div>
+                <div id="image-preview-container" class="image-preview-container hidden">
+                  <img id="image-preview" src="" alt="照片预览">
+                  <button type="button" id="remove-preview-btn" class="remove-preview-btn" title="移除照片">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+              </div>
+              <input type="hidden" id="ann-image-url">
+              <!-- Upload status overlay -->
+              <div id="upload-status" class="upload-status hidden">
+                <i class="fas fa-spinner fa-spin"></i> 上传中...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="ann-error-msg" class="error-msg hidden"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary cancel-modal">取消</button>
+          <button type="submit" id="save-ann-btn" class="btn btn-primary">保存回忆</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. CONFIG SETTINGS MODAL -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal-content glass-panel animated-popup">
+      <div class="modal-header">
+        <h2><i class="fas fa-cog"></i> 站点配置管理</h2>
+        <button class="close-modal-btn">&times;</button>
+      </div>
+      <form id="settings-form">
+        <div class="form-group">
+          <label for="set-title-input">小站标题</label>
+          <input type="text" id="set-title-input" placeholder="如：我们的爱之小站" required>
+        </div>
+        <div class="form-group">
+          <label for="set-since-input">相爱起点日期</label>
+          <input type="date" id="set-since-input" required>
+          <p class="form-help-text">该日期用于主页大屏的“恋爱计时器”计算天数</p>
+        </div>
+        <div id="settings-error-msg" class="error-msg hidden"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary cancel-modal">取消</button>
+          <button type="submit" class="btn btn-primary">保存设置</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. GLOBAL NOTIFICATION TOAST -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Custom JS Controller -->
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment and Secrets (CRITICAL: Do not upload your passwords!)
+.env
+
+# Local Database and Uploaded Media (CRITICAL: Keep your private files off public git!)
+data/uploads/*
+!data/uploads/.gitkeep
+data/database.json
+
+# OS and IDE configuration files
+.DS_Store
+.DS_Store?
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

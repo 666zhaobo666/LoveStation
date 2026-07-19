@@ -1,0 +1,30 @@
+{
+  "name": "lovestation",
+  "version": "1.0.0",
+  "description": "A premium, lightweight couple anniversary and memories tracker with backup and role authorization.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.10",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "keywords": [
+    "couple",
+    "anniversary",
+    "memories",
+    "tracker",
+    "self-hosted",
+    "lightweight"
+  ],
+  "author": "",
+  "license": "MIT"
+}
