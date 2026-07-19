@@ -52,16 +52,7 @@ const DOM = {
   annErrorMsg: document.getElementById('ann-error-msg'),
   saveAnnBtn: document.getElementById('save-ann-btn'),
 
-  // Memory Detail Modal
-  detailModal: document.getElementById('detail-modal'),
-  closeDetailModalBtn: document.getElementById('close-detail-modal-btn'),
-  detailPhotosStream: document.getElementById('detail-photos-stream'),
-  detailModalTitle: document.getElementById('detail-modal-title'),
-  detailDate: document.getElementById('detail-date'),
-  detailPill: document.getElementById('detail-pill'),
-  detailTags: document.getElementById('detail-tags'),
-  detailDesc: document.getElementById('detail-desc'),
-  
+
   settingsModal: document.getElementById('settings-modal'),
   settingsForm: document.getElementById('settings-form'),
   setTitleInput: document.getElementById('set-title-input'),
@@ -493,101 +484,13 @@ window.openEditAnnModal = function(id) {
   DOM.annModal.classList.remove('hidden');
 };
 
-// 8.5 Open Read-Only Memory Detail Modal with Vertical Photo Stream
+// 8.5 Open Read-Only Memory Detail page in new tab
 window.openDetailModal = function(id, event) {
-  // If the click is on admin buttons, don't open the detail modal
+  // If the click is on admin buttons, don't open the detail page
   if (event && (event.target.closest('.card-admin-drawer') || event.target.closest('.card-icon-btn'))) {
     return;
   }
-
-  const item = state.anniversaries.find(ann => ann.id === id);
-  if (!item) return;
-
-  // Set title and details
-  DOM.detailModalTitle.textContent = item.title;
-  DOM.detailDate.innerHTML = `<i class="far fa-clock"></i> ${item.date}`;
-  DOM.detailDesc.textContent = item.description || '这一天没有任何描述文字呢。但那些有你在的细节，我都深深记在了心里。';
-
-  // Render tags
-  let tagsHTML = '';
-  if (Array.isArray(item.tags)) {
-    item.tags.forEach(tag => {
-      if (tag.trim()) {
-        tagsHTML += `<span class="card-tag">#${tag}</span>`;
-      }
-    });
-  }
-  DOM.detailTags.innerHTML = tagsHTML;
-
-  // Calculate pill text
-  let pillText = '';
-  let pillClass = '';
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  if (item.type === 'yearly') {
-    const { daysLeft, anniversaryIndex } = getYearlyEventStatus(item.date);
-    const isBirthday = item.title.includes('生日') || (Array.isArray(item.tags) && item.tags.includes('生日'));
-    
-    if (daysLeft === 0) {
-      pillClass = 'countup';
-      pillText = isBirthday ? `今天生日啦！🎂 (满 ${anniversaryIndex} 岁)` : `今天第 ${anniversaryIndex} 周年纪念 ❤️`;
-    } else {
-      pillClass = 'countdown';
-      pillText = isBirthday 
-        ? `距离生日还有 ${daysLeft} 天 (将满 ${anniversaryIndex} 岁)` 
-        : `还有 ${daysLeft} 天 (第 ${anniversaryIndex} 周年)`;
-    }
-  } else {
-    const eventDate = new Date(item.date + 'T00:00:00');
-    eventDate.setHours(0, 0, 0, 0);
-    const diffTime = today - eventDate;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays > 0) {
-      pillClass = 'countup';
-      pillText = `已过去 ${diffDays} 天`;
-    } else if (diffDays === 0) {
-      pillClass = 'countup';
-      pillText = '就在今天 ❤️';
-    } else {
-      pillClass = 'countdown';
-      pillText = `倒计时 ${Math.abs(diffDays)} 天`;
-    }
-  }
-
-  DOM.detailPill.textContent = pillText;
-  DOM.detailPill.className = `card-days-pill ${pillClass}`;
-
-  // Handle Vertical Photo Stream Media Rendering
-  const itemImages = Array.isArray(item.images) ? item.images : (item.image ? [item.image] : []);
-  
-  if (itemImages.length > 0) {
-    DOM.detailPhotosStream.classList.remove('hidden');
-    
-    // Render photos stacked vertically
-    let streamHTML = '';
-    itemImages.forEach((imgUrl, index) => {
-      streamHTML += `
-        <div class="stream-photo-item">
-          <img src="${imgUrl}" alt="${item.title} 照片 ${index + 1}" loading="lazy">
-        </div>
-      `;
-    });
-    DOM.detailPhotosStream.innerHTML = streamHTML;
-  } else {
-    DOM.detailPhotosStream.classList.add('hidden');
-    DOM.detailPhotosStream.innerHTML = '';
-  }
-
-  // Show Modal
-  DOM.detailModal.classList.remove('hidden');
-  
-  // Auto scroll the modal body to top when opened
-  const modalBody = DOM.detailModal.querySelector('.detail-modal-body');
-  if (modalBody) {
-    modalBody.scrollTop = 0;
-  }
+  window.open(`detail.html?id=${id}`, '_blank');
 };
 
 // 9. Delete Anniversary
@@ -623,16 +526,6 @@ function initEventListeners() {
     modal.classList.add('hidden');
   };
 
-  // Close detail modal clicks
-  DOM.closeDetailModalBtn.addEventListener('click', () => {
-    DOM.detailModal.classList.add('hidden');
-  });
-
-  DOM.detailModal.addEventListener('click', (e) => {
-    if (e.target === DOM.detailModal) {
-      DOM.detailModal.classList.add('hidden');
-    }
-  });
 
 
   DOM.adminLockBtn.addEventListener('click', () => {
